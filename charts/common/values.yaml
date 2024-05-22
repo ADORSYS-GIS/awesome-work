@@ -429,7 +429,7 @@ service:
 ingress:
   ## @param ingress.enabled Enable ingress record generation
   ##
-  enabled: true
+  enabled: false
   ## @param ingress.apiVersion Force Ingress API version (automatically detected if not set)
   ##
   apiVersion: ""
@@ -488,7 +488,7 @@ ingress:
 persistence:
   ## @param persistence.enabled Enable persistence using Persistent Volume Claims
   ##
-  enabled: true
+  enabled: false
   ## @param persistence.storageClass Persistent Volume storage class
   ## If defined, storageClassName: <storageClass>
   ## If set to "-", storageClassName: "", which disables dynamic provisioning
@@ -563,7 +563,7 @@ pdb:
 ## @param autoscaling.targetMemory Target Memory utilization percentage
 ##
 autoscaling:
-  enabled: true
+  enabled: false
   minReplicas: 1
   maxReplicas: 5
   targetCPU: 80
@@ -576,7 +576,7 @@ autoscaling:
 metrics:
   ## @param metrics.enabled Start a sidecar prometheus exporter to expose metrics
   ##
-  enabled: true
+  enabled: false
   ## Bitnami Apache exporter image
   ## ref: https://hub.docker.com/r/bitnami/apache-exporter/tags/
   ## @param metrics.image.registry [default: REGISTRY_NAME] Apache exporter image registry
