@@ -61,17 +61,15 @@ frontend:
         secretName: '{{ .Values.global.publicDomain }}-tls'
 
   # Additional volumes on the output Deployment definition.
-  volumes: [ ]
-  # - name: foo
-  #   secret:
-  #     secretName: mysecret
-  #     optional: false
+  extraVolumes:
+    - name: penpot-assets
+      persistentVolumeClaim:
+        claimName: '{{ include "penpot.baseConfigName" $ }}-assets'
 
   # Additional volumeMounts on the output Deployment definition.
-  volumeMounts: [ ]
-  # - name: foo
-  #   mountPath: "/etc/foo"
-  #   readOnly: true
+  extraVolumeMounts:
+    - name: penpot-assets
+      mountPath: /opt/data/assets
 
   extraEnvVarsCM:
     - '{{ include "penpot.baseConfigName" $ }}-common'
@@ -107,6 +105,17 @@ backend:
   extraContainerPorts:
     - name: http
       containerPort: 6060
+
+  # Additional volumes on the output Deployment definition.
+  extraVolumes:
+    - name: penpot-assets
+      persistentVolumeClaim:
+        claimName: '{{ include "penpot.baseConfigName" $ }}-assets'
+
+  # Additional volumeMounts on the output Deployment definition.
+  extraVolumeMounts:
+    - name: penpot-assets
+      mountPath: /opt/data/assets
 
   extraEnvVarsCM:
     - '{{ include "penpot.baseConfigName" $ }}-common'
@@ -219,20 +228,20 @@ backendEnv:
 
   # Storage https://help.penpot.app/technical-guide/configuration/#storage
   # FS storage (default) https://help.penpot.app/technical-guide/configuration/#fs-backend-(default)
-  #PENPOT_ASSETS_STORAGE_BACKEND: assets-fs
-  #PENPOT_STORAGE_ASSETS_FS_DIRECTORY: /opt/data/assets
+  PENPOT_ASSETS_STORAGE_BACKEND: assets-fs
+  PENPOT_STORAGE_ASSETS_FS_DIRECTORY: /opt/data/assets
   ## S3-like Backend https://help.penpot.app/technical-guide/configuration/#aws-s3-backend
   # Credentials
-  AWS_ACCESS_KEY_ID: "<you-access-key-id-here>"
-  AWS_SECRET_ACCESS_KEY: "<your-secret-access-key-here>"
+  #AWS_ACCESS_KEY_ID: "<you-access-key-id-here>"
+  #AWS_SECRET_ACCESS_KEY: "<your-secret-access-key-here>"
   #
   # Backend configuration
-  PENPOT_ASSETS_STORAGE_BACKEND: "assets-s3"
+  #PENPOT_ASSETS_STORAGE_BACKEND: "assets-s3"
   #PENPOT_STORAGE_ASSETS_S3_REGION: <aws-region>
-  PENPOT_STORAGE_ASSETS_S3_BUCKET: "<bucket-name>"
+  #PENPOT_STORAGE_ASSETS_S3_BUCKET: "<bucket-name>"
   #
   # Optional if you want to use it with non AWS, S3 compatible service:
-  PENPOT_STORAGE_ASSETS_S3_ENDPOINT: "<endpoint-uri>"
+  #PENPOT_STORAGE_ASSETS_S3_ENDPOINT: "<endpoint-uri>"
   # Http
   #PENPOT_HTTP_SERVER_PORT: "6060"
   #PENPOT_HTTP_SERVER_HOST: "0.0.0.0"
@@ -253,3 +262,41 @@ postgresql:
   enabled: false
 redis:
   enabled: false
+
+## Persistence Parameters
+## ref: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+##
+persistence:
+  ## @param persistence.storageClass Persistent Volume storage class
+  ## If defined, storageClassName: <storageClass>
+  ## If set to "-", storageClassName: "", which disables dynamic provisioning
+  ## If undefined (the default) or set to null, no storageClassName spec is set, choosing the default provisioner
+  ##
+  storageClass: ""
+  ## @param persistence.accessModes [array] Persistent Volume access modes
+  ##
+  accessModes:
+    - ReadWriteMany
+  ## @param persistence.accessMode Persistent Volume access mode (DEPRECATED: use `persistence.accessModes` instead)
+  ##
+  accessMode: ReadWriteMany
+  ## @param persistence.size Persistent Volume size
+  ##
+  size: 50Gi
+  ## @param persistence.dataSource PVC data source
+  ##
+  dataSource: { }
+  ## @param persistence.existingClaim The name of an existing PVC to use for persistence
+  ##
+  existingClaim: ""
+  ## @param persistence.selector Selector to match an existing Persistent Volume for data PVC
+  ## If set, the PVC can't have a PV dynamically provisioned for it
+  ## E.g.
+  ## selector:
+  ##   matchLabels:
+  ##     app: my-app
+  ##
+  selector: { }
+  ## @param persistence.annotations Persistent Volume Claim annotations
+  ##
+  annotations: { }
