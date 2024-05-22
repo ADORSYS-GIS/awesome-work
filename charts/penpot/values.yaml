@@ -19,6 +19,8 @@ global:
   ## @param commonAnnotations Annotations to add to all deployed objects
   ##
   commonAnnotations: { }
+  ## @param publicUrl Public URL for the Penpot instance
+  publicDomain: "penpot-domain.fqdn"
 
 frontend:
   image:
@@ -42,25 +44,21 @@ frontend:
         port: 80
         targetPort: http
 
+  extraContainerPorts:
+    - name: http
+      containerPort: 80
+
   ingress:
     ## @param ingress.enabled Enable ingress controller resource for frontend
     ##
     enabled: true
     extraHosts:
-      - name: frontend.local
+      - name: '{{ .Values.global.publicDomain }}'
         path: /
-    ## @param ingress.extraTls The tls configuration for additional hostnames to be covered with this ingress record.
-    ## see: https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
-    ## e.g:
-    ## extraTls:
-    ## - hosts:
-    ##     - frontend.local
-    ##   secretName: frontend.local-tls
-    ##
     extraTls:
       - hosts:
-          - frontend.local
-        secretName: frontend.local-tls
+          - '{{ .Values.global.publicDomain }}'
+        secretName: '{{ .Values.global.publicDomain }}-tls'
 
   # Additional volumes on the output Deployment definition.
   volumes: [ ]
@@ -76,8 +74,11 @@ frontend:
   #   readOnly: true
 
   extraEnvVarsCM:
-    - '{{ include "penpot.fullname" . }}-common'
-    - '{{ include "penpot.fullname" . }}-frontend'
+    - '{{ include "penpot.baseConfigName" $ }}-common'
+    - '{{ include "penpot.baseConfigName" $ }}-frontend'
+
+  containerSecurityContext:
+    enabled: false
 
 backend:
   replicaCount: 1
@@ -90,11 +91,11 @@ backend:
 
   resources:
     limits:
-      cpu: 300m
-      memory: 512Mi
+      cpu: 2000m
+      memory: 4Gi
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 1000m
+      memory: 2Gi
 
   service:
     type: ClusterIP
@@ -103,9 +104,24 @@ backend:
         port: 6060
         targetPort: http
 
+  extraContainerPorts:
+    - name: http
+      containerPort: 6060
+
   extraEnvVarsCM:
-    - '{{ include "penpot.fullname" . }}-common'
-    - '{{ include "penpot.fullname" . }}-backend'
+    - '{{ include "penpot.baseConfigName" $ }}-common'
+    - '{{ include "penpot.baseConfigName" $ }}-backend'
+
+  containerSecurityContext:
+    enabled: false
+
+  readinessProbe:
+    initialDelaySeconds: 60
+    httpGet:
+      path: /readyz
+
+  livenessProbe:
+    initialDelaySeconds: 60
 
 exporter:
   image:
@@ -116,34 +132,57 @@ exporter:
 
   resources:
     limits:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 2000m
+      memory: 3Gi
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 1000m
+      memory: 2Gi
+
+  service:
+    type: ClusterIP
+    extraPorts:
+      - name: http
+        port: 6061
+        targetPort: http
+
+  extraContainerPorts:
+    - name: http
+      containerPort: 6061
 
   extraEnvVarsCM:
-    - '{{ include "penpot.fullname" . }}-common'
-    - '{{ include "penpot.fullname" . }}-exporter'
+    - '{{ include "penpot.baseConfigName" $ }}-common'
+    - '{{ include "penpot.baseConfigName" $ }}-exporter'
+
+  containerSecurityContext:
+    enabled: false
+
+  readinessProbe:
+    initialDelaySeconds: 60
+    httpGet:
+      path: /readyz
+
+  livenessProbe:
+    initialDelaySeconds: 60
 
 commonEnv:
+  PENPOT_TELEMETRY_ENABLED: "false"
   PENPOT_FLAGS: "$PENPOT_FLAGS enable-demo-warning disable-login enable-login-with-oidc"
-  ## Backend only
-  PENPOT_OIDC_CLIENT_ID: <client-id>
+  ##
+  PENPOT_OIDC_CLIENT_ID: "<your-client-id>"
+  PENPOT_OIDC_CLIENT_SECRET: "<your-client-secret>"
 
   # Mainly used for auto discovery the openid endpoints
-  PENPOT_OIDC_BASE_URI: <uri>
-  PENPOT_OIDC_CLIENT_SECRET: <client-id>
+  PENPOT_OIDC_BASE_URI: "<openid-connect-base-uri>"
 
   # Optional backend variables, used mainly if you want override; they are
   # autodiscovered using the standard openid-connect mechanism.
-  PENPOT_OIDC_AUTH_URI: <uri>
-  PENPOT_OIDC_TOKEN_URI: <uri>
-  PENPOT_OIDC_USER_URI: <uri>
+  #PENPOT_OIDC_AUTH_URI: <uri>
+  #PENPOT_OIDC_TOKEN_URI: <uri>
+  #PENPOT_OIDC_USER_URI: <uri>
 
   # Optional list of roles that users are required to have. If no role
   # is provided, roles checking  disabled.
-  PENPOT_OIDC_ROLES: "role1 role2"
+  #PENPOT_OIDC_ROLES: "role1 role2"
 
   # Attribute to use for lookup roles on the user object. Optional, if
   # not provided, the roles checking will be disabled.
@@ -151,22 +190,25 @@ commonEnv:
   PENPOT_OIDC_SCOPES: "email openid"
   # Attribute to use for lookup the name on the user object. Optional,
   # if not perovided, the `name` prop will be used.
-  PENPOT_OIDC_NAME_ATTR: sub
+  #PENPOT_OIDC_NAME_ATTR: sub
 
   # Attribute to use for lookup the email on the user object. Optional,
   # if not perovided, the `email` prop will be used.
   PENPOT_OIDC_EMAIL_ATTR: email
+  # Redis
+  PENPOT_REDIS_URI: "redis://<redis-url>:6379"
 
 # https://help.penpot.app/technical-guide/configuration/#backend
 backendEnv:
+  PENPOT_SECRET_KEY: "some-secret-key"
   # Database configuration
-  PENPOT_DATABASE_USERNAME: penpot
-  PENPOT_DATABASE_PASSWORD: penpot
-  PENPOT_DATABASE_URI: postgresql://127.0.0.1/penpot
+  PENPOT_DATABASE_USERNAME: "penpot"
+  PENPOT_DATABASE_PASSWORD: "penpot"
+  PENPOT_DATABASE_URI: "postgresql://127.0.0.1/penpot"
   #
   # SMTP configuration https://help.penpot.app/technical-guide/configuration/#email-(smtp)
-  PENPOT_SMTP_DEFAULT_REPLY_TO: Penpot <no-reply@example.com>
-  PENPOT_SMTP_DEFAULT_FROM: Penpot <no-reply@example.com>
+  PENPOT_SMTP_DEFAULT_REPLY_TO: "Penpot <no-reply@example.com>"
+  PENPOT_SMTP_DEFAULT_FROM: "Penpot <no-reply@example.com>"
   # Enable SMTP
   #PENPOT_FLAGS: "[...] enable-smtp"
   #PENPOT_SMTP_HOST: <host>
@@ -181,28 +223,33 @@ backendEnv:
   #PENPOT_STORAGE_ASSETS_FS_DIRECTORY: /opt/data/assets
   ## S3-like Backend https://help.penpot.app/technical-guide/configuration/#aws-s3-backend
   # Credentials
-  AWS_ACCESS_KEY_ID: <you-access-key-id-here>
-  AWS_SECRET_ACCESS_KEY: <your-secret-access-key-here>
+  AWS_ACCESS_KEY_ID: "<you-access-key-id-here>"
+  AWS_SECRET_ACCESS_KEY: "<your-secret-access-key-here>"
   #
   # Backend configuration
-  PENPOT_ASSETS_STORAGE_BACKEND: assets-s3
-  PENPOT_STORAGE_ASSETS_S3_REGION: <aws-region>
-  PENPOT_STORAGE_ASSETS_S3_BUCKET: <bucket-name>
+  PENPOT_ASSETS_STORAGE_BACKEND: "assets-s3"
+  #PENPOT_STORAGE_ASSETS_S3_REGION: <aws-region>
+  PENPOT_STORAGE_ASSETS_S3_BUCKET: "<bucket-name>"
   #
   # Optional if you want to use it with non AWS, S3 compatible service:
-  PENPOT_STORAGE_ASSETS_S3_ENDPOINT: <endpoint-uri>
-  # Redis (for websocket)
-  PENPOT_REDIS_URI: redis://localhost/0
+  PENPOT_STORAGE_ASSETS_S3_ENDPOINT: "<endpoint-uri>"
   # Http
-  PENPOT_HTTP_SERVER_PORT: 6060
-  PENPOT_HTTP_SERVER_HOST: localhost
-  PENPOT_PUBLIC_URI: http://localhost:6060
+  #PENPOT_HTTP_SERVER_PORT: "6060"
+  #PENPOT_HTTP_SERVER_HOST: "0.0.0.0"
+  PENPOT_PUBLIC_URI: 'https://{{ .Values.global.publicDomain }}'
 
 # https://help.penpot.app/technical-guide/configuration/#frontend
 frontendEnv:
   # Backend URL
-  PENPOT_BACKEND_URI: http://your-penpot-backend
-  PENPOT_EXPORTER_URI: http://your-penpot-exporter
+  PENPOT_BACKEND_URI: 'http://{{ .Release.Name }}-backend:6060'
+  PENPOT_EXPORTER_URI: 'http://{{ .Release.Name }}-exporter:6061'
 
 exporterEnv:
-  PENPOT_PUBLIC_URI: http://public-domain
+  PENPOT_PUBLIC_URI: 'https://{{ .Values.global.publicDomain }}'
+
+minio:
+  enabled: false
+postgresql:
+  enabled: false
+redis:
+  enabled: false
