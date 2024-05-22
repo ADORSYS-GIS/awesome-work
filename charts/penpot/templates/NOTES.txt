@@ -1,0 +1,15 @@
+RELEASE NAME:   {{ .Release.Name }}
+IS INSTALL:     {{ .Release.IsInstall }}
+REVISION:       {{ .Release.Revision }}
+CHART NAME:     {{ .Chart.Name }}
+CHART VERSION:  {{ .Chart.Version }}
+APP VERSION:    {{ .Chart.AppVersion }}
+
+** Please be patient while the chart is being deployed **
+
+{{- include "common.validateValues" . }}
+{{- include "common.warnings.rollingTag" .Values.frontend.metrics.image }}
+{{- include "common.warnings.rollingTag" .Values.backend.metrics.image }}
+{{- include "common.warnings.rollingTag" .Values.exporter.metrics.image }}
+{{- include "common.warnings.resources" (dict "sections" (list "frontend.metrics" "frontend" "backend.metrics" "backend" "exporter.metrics" "exporter") "context" $) }}
+{{- include "common.warnings.modifiedImages" (dict "images" (list .Values.frontend.image .Values.frontend.metrics.image .Values.backend.image .Values.backend.metrics.image .Values.exporter.image .Values.exporter.metrics.image) "context" $) }}

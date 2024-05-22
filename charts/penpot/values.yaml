@@ -1,0 +1,208 @@
+# Default values for penpot.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+## @param nameOverride String to partially override common.names.fullname template (will maintain the release name)
+##
+nameOverride: ""
+## @param namespaceOverride String to fully override common.names.namespace
+##
+namespaceOverride: ""
+## @param fullnameOverride String to fully override common.names.fullname template
+##
+fullnameOverride: ""
+
+global:
+  ## @param commonLabels Labels to add to all deployed objects
+  ##
+  commonLabels: { }
+  ## @param commonAnnotations Annotations to add to all deployed objects
+  ##
+  commonAnnotations: { }
+
+frontend:
+  image:
+    repository: penpotapp/frontend
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "2.0.1"
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  service:
+    type: ClusterIP
+    extraPorts:
+      - name: http
+        port: 80
+        targetPort: http
+
+  ingress:
+    ## @param ingress.enabled Enable ingress controller resource for frontend
+    ##
+    enabled: true
+    extraHosts:
+      - name: frontend.local
+        path: /
+    ## @param ingress.extraTls The tls configuration for additional hostnames to be covered with this ingress record.
+    ## see: https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
+    ## e.g:
+    ## extraTls:
+    ## - hosts:
+    ##     - frontend.local
+    ##   secretName: frontend.local-tls
+    ##
+    extraTls:
+      - hosts:
+          - frontend.local
+        secretName: frontend.local-tls
+
+  # Additional volumes on the output Deployment definition.
+  volumes: [ ]
+  # - name: foo
+  #   secret:
+  #     secretName: mysecret
+  #     optional: false
+
+  # Additional volumeMounts on the output Deployment definition.
+  volumeMounts: [ ]
+  # - name: foo
+  #   mountPath: "/etc/foo"
+  #   readOnly: true
+
+  extraEnvVarsCM:
+    - '{{ include "penpot.fullname" . }}-common'
+    - '{{ include "penpot.fullname" . }}-frontend'
+
+backend:
+  replicaCount: 1
+
+  image:
+    repository: penpotapp/backend
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "2.0.1"
+
+  resources:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  service:
+    type: ClusterIP
+    extraPorts:
+      - name: http
+        port: 6060
+        targetPort: http
+
+  extraEnvVarsCM:
+    - '{{ include "penpot.fullname" . }}-common'
+    - '{{ include "penpot.fullname" . }}-backend'
+
+exporter:
+  image:
+    repository: penpotapp/exporter
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "2.0.1"
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  extraEnvVarsCM:
+    - '{{ include "penpot.fullname" . }}-common'
+    - '{{ include "penpot.fullname" . }}-exporter'
+
+commonEnv:
+  PENPOT_FLAGS: "$PENPOT_FLAGS enable-demo-warning disable-login enable-login-with-oidc"
+  ## Backend only
+  PENPOT_OIDC_CLIENT_ID: <client-id>
+
+  # Mainly used for auto discovery the openid endpoints
+  PENPOT_OIDC_BASE_URI: <uri>
+  PENPOT_OIDC_CLIENT_SECRET: <client-id>
+
+  # Optional backend variables, used mainly if you want override; they are
+  # autodiscovered using the standard openid-connect mechanism.
+  PENPOT_OIDC_AUTH_URI: <uri>
+  PENPOT_OIDC_TOKEN_URI: <uri>
+  PENPOT_OIDC_USER_URI: <uri>
+
+  # Optional list of roles that users are required to have. If no role
+  # is provided, roles checking  disabled.
+  PENPOT_OIDC_ROLES: "role1 role2"
+
+  # Attribute to use for lookup roles on the user object. Optional, if
+  # not provided, the roles checking will be disabled.
+  #PENPOT_OIDC_ROLES_ATTR:
+  PENPOT_OIDC_SCOPES: "email openid"
+  # Attribute to use for lookup the name on the user object. Optional,
+  # if not perovided, the `name` prop will be used.
+  PENPOT_OIDC_NAME_ATTR: sub
+
+  # Attribute to use for lookup the email on the user object. Optional,
+  # if not perovided, the `email` prop will be used.
+  PENPOT_OIDC_EMAIL_ATTR: email
+
+# https://help.penpot.app/technical-guide/configuration/#backend
+backendEnv:
+  # Database configuration
+  PENPOT_DATABASE_USERNAME: penpot
+  PENPOT_DATABASE_PASSWORD: penpot
+  PENPOT_DATABASE_URI: postgresql://127.0.0.1/penpot
+  #
+  # SMTP configuration https://help.penpot.app/technical-guide/configuration/#email-(smtp)
+  PENPOT_SMTP_DEFAULT_REPLY_TO: Penpot <no-reply@example.com>
+  PENPOT_SMTP_DEFAULT_FROM: Penpot <no-reply@example.com>
+  # Enable SMTP
+  #PENPOT_FLAGS: "[...] enable-smtp"
+  #PENPOT_SMTP_HOST: <host>
+  #PENPOT_SMTP_PORT: 587
+  #PENPOT_SMTP_USERNAME: <username>
+  #PENPOT_SMTP_PASSWORD: <password>
+  #PENPOT_SMTP_TLS: true
+
+  # Storage https://help.penpot.app/technical-guide/configuration/#storage
+  # FS storage (default) https://help.penpot.app/technical-guide/configuration/#fs-backend-(default)
+  #PENPOT_ASSETS_STORAGE_BACKEND: assets-fs
+  #PENPOT_STORAGE_ASSETS_FS_DIRECTORY: /opt/data/assets
+  ## S3-like Backend https://help.penpot.app/technical-guide/configuration/#aws-s3-backend
+  # Credentials
+  AWS_ACCESS_KEY_ID: <you-access-key-id-here>
+  AWS_SECRET_ACCESS_KEY: <your-secret-access-key-here>
+  #
+  # Backend configuration
+  PENPOT_ASSETS_STORAGE_BACKEND: assets-s3
+  PENPOT_STORAGE_ASSETS_S3_REGION: <aws-region>
+  PENPOT_STORAGE_ASSETS_S3_BUCKET: <bucket-name>
+  #
+  # Optional if you want to use it with non AWS, S3 compatible service:
+  PENPOT_STORAGE_ASSETS_S3_ENDPOINT: <endpoint-uri>
+  # Redis (for websocket)
+  PENPOT_REDIS_URI: redis://localhost/0
+  # Http
+  PENPOT_HTTP_SERVER_PORT: 6060
+  PENPOT_HTTP_SERVER_HOST: localhost
+  PENPOT_PUBLIC_URI: http://localhost:6060
+
+# https://help.penpot.app/technical-guide/configuration/#frontend
+frontendEnv:
+  # Backend URL
+  PENPOT_BACKEND_URI: http://your-penpot-backend
+  PENPOT_EXPORTER_URI: http://your-penpot-exporter
+
+exporterEnv:
+  PENPOT_PUBLIC_URI: http://public-domain
