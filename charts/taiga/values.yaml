@@ -1,111 +1,372 @@
-# Default values for taiga.
+# Default values for penpot.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
-
-image:
-  repository: nginx
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
-
-imagePullSecrets: []
+## @param nameOverride String to partially override common.names.fullname template (will maintain the release name)
+##
 nameOverride: ""
+## @param namespaceOverride String to fully override common.names.namespace
+##
+namespaceOverride: ""
+## @param fullnameOverride String to fully override common.names.fullname template
+##
 fullnameOverride: ""
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
+global:
+  ## @param commonLabels Labels to add to all deployed objects
+  ##
+  commonLabels: { }
+  ## @param commonAnnotations Annotations to add to all deployed objects
+  ##
+  commonAnnotations: { }
+  ## @param domain Domain name for the service
+  ##
+  domain: "taiga.domain.com"
 
-podAnnotations: {}
-podLabels: {}
+back:
+  enabled: true
 
-podSecurityContext: {}
-  # fsGroup: 2000
+  image:
+    repository: taigaio/taiga-back
+    tag: "6.7.3"
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+  initContainers:
+    - name: taiga-back-init
+      image: taigaio/taiga-back
+      command: ["/bin/sh", "-c"]
+      args:
+        - echo "Starting project bootstrap...";
+          if python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); print(User.objects.filter(is_superuser=True).exists())" | grep -q "False"; then echo "Creating superuser..."; python manage.py createsuperuser --noinput; else echo "Superuser already exists. Skipping creation."; fi;
+          if ! [ -d "staticfiles" ]; then echo "Collecting static files..."; python manage.py collectstatic --noinput; else echo "Static files already collected. Skipping."; fi;
+          echo "Project bootstrap completed.";
+      env:
+        - name: DJANGO_SUPERUSER_USERNAME
+          value: 'admin'
+        - name: DJANGO_SUPERUSER_EMAIL
+          value: 'admin@{{ .Values.global.domain }}'
+        - name: DJANGO_SUPERUSER_PASSWORD
+          value: 'admin'
+      envFrom:
+        - configMapRef:
+            name: '{{ include "taiga.baseConfigName" $ }}-backend'
+      volumeMounts:
+        - name: taiga-backend
+          mountPath: /taiga-back/static
+          subPath: static
+        - name: taiga-backend
+          mountPath: /taiga-back/media
+          subPath: media
 
-service:
-  type: ClusterIP
-  port: 80
+  extraContainerPorts:
+    - name: http
+      containerPort: 8000
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+  service:
+    extraPorts:
+      - name: http
+        port: 8000
+        targetPort: http
+        protocol: TCP
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  extraEnvVarsCM:
+    - '{{ include "taiga.baseConfigName" $ }}-backend'
 
-livenessProbe:
-  httpGet:
-    path: /
-    port: http
-readinessProbe:
-  httpGet:
-    path: /
-    port: http
+  extraVolumes:
+    - name: taiga-backend
+      persistentVolumeClaim:
+        claimName: '{{ include "taiga.baseConfigName" $ }}-backend-pvc'
 
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  # Additional volumeMounts on the output Deployment definition.
+  extraVolumeMounts:
+    - name: taiga-backend
+      mountPath: /taiga-back/static
+      subPath: static
+    - name: taiga-backend
+      mountPath: /taiga-back/media
+      subPath: media
 
-# Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
 
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
+async:
+  enabled: true
 
-nodeSelector: {}
+  image:
+    repository: taigaio/taiga-back
+    tag: "6.7.3"
 
-tolerations: []
+  command: [ "/taiga-back/docker/async_entrypoint.sh" ]
 
-affinity: {}
+  service:
+    enabled: false
 
+  extraEnvVarsCM:
+    - '{{ include "taiga.baseConfigName" $ }}-backend'
 
-penpot:
-  config:
+  extraVolumes:
+    - name: taiga-backend
+      persistentVolumeClaim:
+        claimName: '{{ include "taiga.baseConfigName" $ }}-backend-pvc'
+
+  # Additional volumeMounts on the output Deployment definition.
+  extraVolumeMounts:
+    - name: taiga-backend
+      mountPath: /taiga-back/static
+      subPath: static
+    - name: taiga-backend
+      mountPath: /taiga-back/media
+      subPath: media
+
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
+
+front:
+  enabled: true
+
+  image:
+    repository: taigaio/taiga-front
+    tag: "6.7.7"
+
+  extraContainerPorts:
+    - name: http
+      containerPort: 80
+
+  service:
+    extraPorts:
+      - name: http
+        port: 80
+        targetPort: http
+        protocol: TCP
+
+  extraEnvVarsCM:
+    - '{{ include "taiga.baseConfigName" $ }}-frontend'
+
+events:
+  enabled: true
+
+  image:
+    repository: taigaio/taiga-events
+    tag: "6.7.0"
+
+  extraContainerPorts:
+    - name: http
+      containerPort: 8888
+    - name: health
+      containerPort: 3023
+
+  service:
+    extraPorts:
+      - name: http
+        port: 8888
+        targetPort: http
+        protocol: TCP
+      - name: health
+        port: 3023
+        targetPort: health
+        protocol: TCP
+
+  extraEnvVarsCM:
+    - '{{ include "taiga.baseConfigName" $ }}-events'
+
+  livenessProbe:
+    httpGet:
+      port: health
+      path: /healthz
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: health
+
+protected:
+  enabled: true
+
+  image:
+    repository: taigaio/taiga-protected
+    tag: "6.7.0"
+
+  extraContainerPorts:
+    - name: http
+      containerPort: 8003
+
+  service:
+    extraPorts:
+      - name: http
+        port: 8003
+        targetPort: http
+        protocol: TCP
+        
+  extraEnvVarsCM:
+    - '{{ include "taiga.baseConfigName" $ }}-protected'
+
+  # TODO (optional): Enable these two when the gh issue is resolved https://github.com/taigaio/taiga-protected/pull/5
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
+
+gateway:
+  enabled: true
+
+  image:
+    repository: nginx
+    tag: "stable-alpine3.19"
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  extraContainerPorts:
+    - name: http
+      containerPort: 80
+
+  service:
+    extraPorts:
+      - name: http
+        port: 80
+        targetPort: http
+        protocol: TCP
+        
+  ingress:
+    ## @param ingress.enabled Enable ingress controller resource for frontend
+    ##
+    enabled: true
+    extraHosts:
+      - name: '{{ .Values.global.domain }}'
+        path: /
+    extraTls:
+      - hosts:
+          - '{{ $.Values.global.domain }}'
+        secretName: '{{ $.Values.global.domain }}-tls'
+
+  extraVolumes:
+    - name: taiga-backend
+      persistentVolumeClaim:
+        claimName: '{{ include "taiga.baseConfigName" $ }}-backend-pvc'
+    - name: taiga-nginx-config
+      configMap:
+        name: '{{ include "taiga.baseConfigName" $ }}-nginx-config'
+
+  # Additional volumeMounts on the output Deployment definition.
+  extraVolumeMounts:
+    - name: taiga-backend
+      mountPath: /taiga/static
+      subPath: static
+    - name: taiga-backend
+      mountPath: /taiga/media
+      subPath: media
+    - name: taiga-nginx-config
+      mountPath: /etc/nginx/conf.d/default.conf
+      subPath: default.conf
+      readOnly: true
+
+## Backend Volume Persistence Parameters
+## ref: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+##
+backendPersistence:
+  ## @param persistence.storageClass Persistent Volume storage class
+  ## If defined, storageClassName: <storageClass>
+  ## If set to "-", storageClassName: "", which disables dynamic provisioning
+  ## If undefined (the default) or set to null, no storageClassName spec is set, choosing the default provisioner
+  ##
+  storageClass: ""
+  ## @param persistence.accessModes [array] Persistent Volume access modes
+  ##
+  accessModes:
+    - ReadWriteMany
+  ## @param persistence.accessMode Persistent Volume access mode (DEPRECATED: use `persistence.accessModes` instead)
+  ##
+  accessMode: ReadWriteMany
+  ## @param persistence.size Persistent Volume size
+  ##
+  size: 50Gi
+  ## @param persistence.dataSource PVC data source
+  ##
+  dataSource: { }
+  ## @param persistence.existingClaim The name of an existing PVC to use for persistence
+  ##
+  existingClaim: ""
+  ## @param persistence.selector Selector to match an existing Persistent Volume for data PVC
+  ## If set, the PVC can't have a PV dynamically provisioned for it
+  ## E.g.
+  ## selector:
+  ##   matchLabels:
+  ##     app: my-app
+  ##
+  selector: { }
+  ## @param persistence.annotations Persistent Volume Claim annotations
+  ##
+  annotations: { }
+
+env:
+  secret: ""
+  scheme: "https"
+  wsScheme: "wss"
+  subPath: ""
+  attachmentMaxAge: 3600
+  postgres:
+    database: "taiga"
+    user: "taiga"
+    password: "taiga"
+    host: "postgres-host"
+  rabbitmq:
+    user: "taiga"
+    password: "taiga"
+    vhost: "taiga"
+    host: "taiga"
+    erlangCookie: "taiga"
+
+backendEnv:
+  TAIGA_BACK_DOMAIN: 'http://{{ include "taiga.baseConfigName" $ }}-common'
+  # These environment variables will be used by taiga-back and taiga-async.
+  # Database settings
+  POSTGRES_DB: '{{ default "taiga" .Values.env.postgres.database }}'
+  POSTGRES_USER: '{{ default "taiga" .Values.env.postgres.user }}'
+  POSTGRES_PASSWORD: '{{ default "taiga-password" .Values.env.postgres.password }}'
+  POSTGRES_HOST: '{{ default "postgres" .Values.env.postgres.host }}'
+
+  # Taiga settings
+  TAIGA_SECRET_KEY: '{{ .Values.env.secret }}'
+  TAIGA_SITES_SCHEME: '{{ default "http" .Values.env.scheme }}'
+  TAIGA_SITES_DOMAIN: '{{ .Values.global.domain }}'
+  TAIGA_SUBPATH: '{{ .Values.env.subPath }}'
+  WEBSOCKETS_SCHEME: '{{ default "ws" .Values.env.wsScheme }}'
+
+  # Email settings
+  #EMAIL_BACKEND: "django.core.mail.backends.smtp.EmailBackend"
+  #DEFAULT_FROM_EMAIL: "<your-email-address>"
+  #EMAIL_USE_TLS: "<your-email-use-tls>"
+  #EMAIL_USE_SSL: "<your-email-use-ssl>"
+  #EMAIL_HOST: "<your-email-host>"
+  #EMAIL_PORT: "<your-email-port>"
+  #EMAIL_HOST_USER: "<your-email-address>"
+  #EMAIL_HOST_PASSWORD: "<your-email-password>"
+
+  # Rabbitmq settings
+  EVENTS_PUSH_BACKEND_URL: 'amqp://{{ .Values.env.rabbitmq.user }}:{{ .Values.env.rabbitmq.password }}@{{ .Values.env.rabbitmq.host }}/{{ .Values.env.rabbitmq.vhost }}'
+  CELERY_BROKER_URL: 'amqp://{{ .Values.env.rabbitmq.user }}:{{ .Values.env.rabbitmq.password }}@{{ .Values.env.rabbitmq.host }}/{{ .Values.env.rabbitmq.vhost }}'
+  RABBITMQ_ERLANG_COOKIE: '{{ .Values.env.rabbitmq.erlangCookie }}'
+
+  # Telemetry settings
+  ENABLE_TELEMETRY: "false"
+
+frontendEnv:
+  TAIGA_URL: '{{ default "http" .Values.env.scheme }}://{{ .Values.global.domain }}'
+  TAIGA_WEBSOCKETS_URL: '{{ default "ws" .Values.env.wsScheme }}://{{ .Values.global.domain }}'
+  TAIGA_SUBPATH: '{{ .Values.env.subPath }}'
+
+eventsEnv:
+  RABBITMQ_ERLANG_COOKIE: '{{ .Values.env.rabbitmq.erlangCookie }}'
+  RABBITMQ_URL: 'amqp://{{ .Values.env.rabbitmq.user }}:{{ .Values.env.rabbitmq.password }}@{{ .Values.env.rabbitmq.host }}/{{ .Values.env.rabbitmq.vhost }}'
+  TAIGA_SECRET_KEY: '{{ .Values.env.secret }}'
+
+protectedEnv:
+  MAX_AGE: '{{ .Values.env.attachmentMaxAge }}'
+  SECRET_KEY: '{{ .Values.env.secret }}'

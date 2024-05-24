@@ -1,62 +1,87 @@
 {{/*
-Expand the name of the chart.
+Return the composed name for base config shared acros multiple services
 */}}
-{{- define "taiga.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
-{{- end }}
+{{- define "taiga.baseConfigName" -}}
+{{- printf "%s-%s" .Release.Name "config" | trunc 55 | trimSuffix "-" }}
+{{- end -}}
 
 {{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
+Create the base config for the Taiga services
 */}}
-{{- define "taiga.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
-{{- end }}
+{{- define "taiga.config.gateway" -}}
+server {
+    listen 80 default_server;
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
-{{- define "taiga.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
-{{- end }}
+    client_max_body_size 100M;
+    charset utf-8;
 
-{{/*
-Common labels
-*/}}
-{{- define "taiga.labels" -}}
-helm.sh/chart: {{ include "taiga.chart" . }}
-{{ include "taiga.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end }}
+    # Frontend
+    location / {
+        proxy_pass http://{{ .Release.Name }}-front/;
+        proxy_pass_header Server;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+    }
 
-{{/*
-Selector labels
-*/}}
-{{- define "taiga.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "taiga.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
+    # API
+    location /api/ {
+        proxy_pass http://{{ .Release.Name }}-back:8000/api/;
+        proxy_pass_header Server;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+    }
 
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "taiga.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "taiga.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
-{{- end }}
+    # Admin
+    location /admin/ {
+        proxy_pass http://{{ .Release.Name }}-back:8000/admin/;
+        proxy_pass_header Server;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+    }
+
+    # Static
+    location /static/ {
+        alias /taiga/static/;
+    }
+
+    # Media
+    location /_protected/ {
+        internal;
+        alias /taiga/media/;
+        add_header Content-disposition "attachment";
+    }
+
+    # Unprotected section
+    location /media/exports/ {
+        alias /taiga/media/exports/;
+        add_header Content-disposition "attachment";
+    }
+
+    location /media/ {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass http://{{ .Release.Name }}-protected:8003/;
+        proxy_redirect off;
+    }
+
+    # Events
+    location /events {
+        proxy_pass http://{{ .Release.Name }}-events:8888/events;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_connect_timeout 7d;
+        proxy_send_timeout 7d;
+        proxy_read_timeout 7d;
+    }
+}
+{{- end -}}

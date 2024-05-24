@@ -49,7 +49,6 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
     condition: postgresql.enabled
 
-
 annotations:
   licenses: Apache-2.0
   images: |

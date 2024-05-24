@@ -2,16 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-## @param nameOverride String to partially override common.names.fullname template (will maintain the release name)
-##
-nameOverride: ""
-## @param namespaceOverride String to fully override common.names.namespace
-##
-namespaceOverride: ""
-## @param fullnameOverride String to fully override common.names.fullname template
-##
-fullnameOverride: ""
-
 global:
   ## @param commonLabels Labels to add to all deployed objects
   ##
@@ -29,14 +19,6 @@ frontend:
     # Overrides the image tag whose default is the chart appVersion.
     tag: "2.0.1"
 
-  resources:
-    limits:
-      cpu: 100m
-      memory: 128Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-
   service:
     type: ClusterIP
     extraPorts:
@@ -49,8 +31,6 @@ frontend:
       containerPort: 80
 
   ingress:
-    ## @param ingress.enabled Enable ingress controller resource for frontend
-    ##
     enabled: true
     extraHosts:
       - name: '{{ .Values.global.publicDomain }}'
@@ -74,9 +54,6 @@ frontend:
   extraEnvVarsCM:
     - '{{ include "penpot.baseConfigName" $ }}-common'
     - '{{ include "penpot.baseConfigName" $ }}-frontend'
-
-  containerSecurityContext:
-    enabled: false
 
 backend:
   replicaCount: 1
@@ -121,16 +98,15 @@ backend:
     - '{{ include "penpot.baseConfigName" $ }}-common'
     - '{{ include "penpot.baseConfigName" $ }}-backend'
 
-  containerSecurityContext:
-    enabled: false
-
   readinessProbe:
-    initialDelaySeconds: 60
+    initialDelaySeconds: 120
     httpGet:
       path: /readyz
 
   livenessProbe:
-    initialDelaySeconds: 60
+    initialDelaySeconds: 120
+    httpGet:
+      path: /readyz
 
 exporter:
   image:
@@ -162,9 +138,6 @@ exporter:
     - '{{ include "penpot.baseConfigName" $ }}-common'
     - '{{ include "penpot.baseConfigName" $ }}-exporter'
 
-  containerSecurityContext:
-    enabled: false
-
   readinessProbe:
     initialDelaySeconds: 60
     httpGet:
@@ -172,6 +145,8 @@ exporter:
 
   livenessProbe:
     initialDelaySeconds: 60
+    httpGet:
+      path: /readyz
 
 commonEnv:
   PENPOT_TELEMETRY_ENABLED: "false"
@@ -254,7 +229,7 @@ frontendEnv:
   PENPOT_EXPORTER_URI: 'http://{{ .Release.Name }}-exporter:6061'
 
 exporterEnv:
-  PENPOT_PUBLIC_URI: 'https://{{ .Values.global.publicDomain }}'
+  PENPOT_PUBLIC_URI: 'http://{{ .Release.Name }}-frontend:80'
 
 minio:
   enabled: false

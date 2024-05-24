@@ -279,7 +279,7 @@ podSecurityContext:
 ## @param containerSecurityContext.seccompProfile.type Set container's Security Context seccomp profile
 ##
 containerSecurityContext:
-  enabled: true
+  enabled: false
   seLinuxOptions: { }
   runAsUser: 1001
   runAsGroup: 1001
@@ -303,8 +303,22 @@ containerSecurityContext:
 ##
 livenessProbe:
   enabled: true
-  tcpSocket:
+  httpGet:
+    path: /
     port: http
+    scheme: HTTP
+    ## If using an HTTPS-terminating load-balancer, the probes may need to behave
+    ## like the balancer to prevent HTTP 302 responses. According to the Kubernetes
+    ## docs, 302 should be considered "successful", but this issue on GitHub
+    ## (https://github.com/kubernetes/kubernetes/issues/47893) shows that it isn't.
+    ## E.g.
+    ## httpHeaders:
+    ## - name: X-Forwarded-Proto
+    ##   value: https
+    ##
+    httpHeaders: [ ]
+  #tcpSocket:
+  #  port: http
   initialDelaySeconds: 120
   periodSeconds: 10
   timeoutSeconds: 5
@@ -375,6 +389,9 @@ lifecycleHooks: { }
 ## Service parameters
 ##
 service:
+  ## @param service.enabled Enable service resource
+  ##
+  enabled: true
   ## @param service.type service type
   ##
   type: ClusterIP
@@ -687,7 +704,7 @@ metrics:
   ## @param metrics.containerSecurityContext.seccompProfile.type Set container's Security Context seccomp profile
   ##
   containerSecurityContext:
-    enabled: true
+    enabled: false
     seLinuxOptions: { }
     runAsUser: 1001
     runAsGroup: 1001

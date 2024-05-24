@@ -1,6 +1,21 @@
 dependencies:
-- name: penpot
-  repository: https://charts.codechem.com
-  version: 1.0.10
-digest: sha256:69ed4876f70f3143f07372c2753d2da91b2c14b376a0f3ff60e7c7c53441d139
-generated: "2024-05-21T22:42:16.477806863+02:00"
+- name: common
+  repository: file://../common
+  version: 0.1.0
+- name: common
+  repository: file://../common
+  version: 0.1.0
+- name: common
+  repository: file://../common
+  version: 0.1.0
+- name: common
+  repository: file://../common
+  version: 0.1.0
+- name: common
+  repository: file://../common
+  version: 0.1.0
+- name: common
+  repository: file://../common
+  version: 0.1.0
+digest: sha256:cdb0ec70ac41432b7e89350543a587024e00fc8b98e2b685557fc33d1851527d
+generated: "2024-05-23T22:29:58.846292952+02:00"

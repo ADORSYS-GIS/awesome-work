@@ -3,6 +3,7 @@ Copyright adorsys GmbH & CO KG. All Rights Reserved.
 SPDX-License-Identifier: APACHE-2.0
 */}}
 
+{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -39,3 +40,4 @@ spec:
   {{- end }}
   {{- $podLabels := include "common.tplvalues.merge" ( dict "values" ( list .Values.podLabels .Values.commonLabels ) "context" . ) }}
   selector: {{- include "common.labels.matchLabels" ( dict "customLabels" $podLabels "context" $ ) | nindent 4 }}
+{{- end }}

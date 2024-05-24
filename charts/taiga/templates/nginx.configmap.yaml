@@ -1,13 +1,12 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "penpot.baseConfigName" $ }}-exporter
+  name: {{ include "taiga.baseConfigName" $ }}-nginx-config
   namespace: {{ .Release.Namespace | quote }}
   labels: {{- include "common.labels.standard" ( dict "customLabels" .Values.global.commonLabels "context" $ ) | nindent 4 }}
   {{- if .Values.global.commonAnnotations }}
   annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.global.commonAnnotations "context" $ ) | nindent 4 }}
   {{- end }}
 data:
-{{- range $cmName, $data := .Values.exporterEnv }}
-  {{ $cmName }}: {{ (tpl $data $) | quote }}
-{{- end }}
+  "default.conf": |
+    {{- include "taiga.config.gateway" $ | nindent 4 }}
