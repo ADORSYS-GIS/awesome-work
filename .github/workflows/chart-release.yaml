@@ -41,3 +41,4 @@ jobs:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_SKIP_EXISTING: true
           CR_PR: true
+          CR_PUSH: false
