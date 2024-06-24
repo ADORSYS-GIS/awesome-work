@@ -6,7 +6,7 @@ on:
     tags:
       - "chart-*"
     paths:
-      - "config/helm-chart/**"
+      - "charts/**"
 
 jobs:
   publish:
