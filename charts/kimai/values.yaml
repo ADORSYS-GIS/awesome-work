@@ -2,5 +2,21 @@ kimai:
   persistence:
     enabled: true
     storageClass: "nfs-client"
-    accessMode: "ReadWriteOnce"
-    size: "1Gi"
+    accessModes:
+      - "ReadWriteOnce"
+      - "ReadOnlyMany"
+    size: "4Gi"
+  serviceAccount:
+    create: true
+  autoscaling:
+    enabled: true
+    targetCPU: 80
+    targetMemory: 80
+  mariadb:
+    enabled: false
+  ingress:
+    enabled: true
+    hostname: kimai.adorsys.team
+    tls: true
+  service:
+    type: ClusterIP
