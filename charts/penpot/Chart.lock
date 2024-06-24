@@ -1,21 +1,21 @@
 dependencies:
 - name: common
   repository: file://../common
-  version: 0.1.0
+  version: 0.1.1
 - name: common
   repository: file://../common
-  version: 0.1.0
+  version: 0.1.1
 - name: common
   repository: file://../common
-  version: 0.1.0
+  version: 0.1.1
 - name: redis
   repository: https://charts.bitnami.com/bitnami
-  version: 19.4.0
+  version: 19.5.5
 - name: postgresql
   repository: https://charts.bitnami.com/bitnami
-  version: 15.4.0
+  version: 15.5.9
 - name: minio
   repository: https://charts.bitnami.com/bitnami
-  version: 14.6.0
-digest: sha256:11ac42bc214180acbc058d0938c091be8e58c1f106188531422967def9ddfff1
-generated: "2024-05-22T20:59:40.303480639+02:00"
+  version: 14.6.11
+digest: sha256:8e99a0fb46bec8712fed45a088ee521fafc8b5a8aab8a89c1c56e20c67019ba1
+generated: "2024-06-24T13:16:49.382349097+02:00"
