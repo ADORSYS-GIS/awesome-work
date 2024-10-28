@@ -1,5 +1,34 @@
 apiVersion: v1
 entries:
+  common:
+  - annotations:
+      images: |-
+        - name: apache-exporter
+          image: docker.io/bitnami/apache-exporter:1.0.7-debian-12-r8
+        - name: os-shell
+          image: docker.io/bitnami/os-shell:12-debian-12-r21
+        - name: app
+          image: docker.io/nginx:stable-alpine3.19
+      licenses: Apache-2.0
+    apiVersion: v2
+    appVersion: 1.0.0
+    created: "2024-10-28T11:18:26.29857446Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      tags:
+      - common
+      - bitnami-common
+      version: 2.19.3
+    description: A Helm chart for Kubernetes
+    digest: 2b67ca49c5a65d7dba5e75c68616b24af3ed4591b12398c14145088429cac2ae
+    home: https://github.com/adorsys-gis/awesome-work
+    icon: https://avatars.githubusercontent.com/u/139577169?s=48&v=4
+    name: common
+    type: application
+    urls:
+    - https://github.com/ADORSYS-GIS/awesome-work/releases/download/common-0.1.1/common-0.1.1.tgz
+    version: 0.1.1
   kimai:
   - apiVersion: v2
     appVersion: 1.16.0
@@ -25,4 +54,53 @@ entries:
     urls:
     - https://github.com/ADORSYS-GIS/awesome-work/releases/download/kimai-0.1.4/kimai-0.1.4.tgz
     version: 0.1.4
-generated: "2024-06-24T13:21:55.844357682Z"
+  penpot:
+  - annotations:
+      images: |-
+        - name: apache-exporter
+          image: docker.io/bitnami/apache-exporter:1.0.7-debian-12-r8
+        - name: os-shell
+          image: docker.io/bitnami/os-shell:12-debian-12-r21
+        - name: penpot-frontend
+          image: docker.io/penpotapp/frontend:2.0.1
+        - name: penpot-backend
+          image: docker.io/penpotapp/backend:2.0.1
+        - name: penpot-exporter
+          image: docker.io/penpotapp/exporter:2.0.1
+      licenses: Apache-2.0
+    apiVersion: v2
+    appVersion: 2.0.1-rc.1
+    created: "2024-10-28T11:18:26.520273421Z"
+    dependencies:
+    - alias: backend
+      name: common
+      repository: file://../common
+      version: 0.1.1
+    - alias: exporter
+      name: common
+      repository: file://../common
+      version: 0.1.1
+    - alias: frontend
+      name: common
+      repository: file://../common
+      version: 0.1.1
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: '*'
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: '*'
+    - condition: postgresql.enabled
+      name: minio
+      repository: https://charts.bitnami.com/bitnami
+      version: '*'
+    description: A Helm chart for Kubernetes
+    digest: 7820cadffd04037567dd35c1d5fd0e90e8d05353678ef9a660dd02e1a9252705
+    name: penpot
+    type: application
+    urls:
+    - https://github.com/ADORSYS-GIS/awesome-work/releases/download/penpot-1.0.2/penpot-1.0.2.tgz
+    version: 1.0.2
+generated: "2024-10-28T11:18:26.520284201Z"
